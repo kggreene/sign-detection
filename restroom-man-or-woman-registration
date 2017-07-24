@@ -1,0 +1,86 @@
+#Use ORB to find man figure on restroom sign with both
+
+#Use ORB to match a single figure (e.g. man) to the corresponding figure on a sign showing both (man and woman). 
+#"largesign" is the image showing both. "smallsign the image with just one. For this test, the single figure 
+#is a crop from the bigger sign. 
+
+#import, load images, display images
+import cv2, os
+import numpy as np
+from matplotlib import pyplot as plt
+os.chdir('C:/Users/Gretchen')
+
+#load large sign
+largesign = cv2.imread('restroomSign15.png',0)
+
+# show large sign
+cv2.imshow('large sign', largesign)
+cv2.waitKey(3000)
+cv2.destroyAllWindows()
+
+#load crop of single figure from large sign
+smallsign = cv2.imread('restroomSign17.png',0)
+
+# show sign image
+cv2.imshow('sign image', smallsign)
+cv2.waitKey(3000)
+cv2.destroyAllWindows()
+
+#ORB keypoints, descriptors and matching
+# initialize ORB and BFMatcher
+orb = cv2.ORB_create()
+bf = cv2.BFMatcher(cv2.NORM_HAMMING,crossCheck=True)
+
+# find the keypoints and descriptors for small sign
+kp_r,des_r = orb.detectAndCompute(smallsign,None)
+
+# find the keypoints and descriptors for large sign
+kp_o, des_o = orb.detectAndCompute(largesign,None)
+
+#display small sign with keypoints
+signKey=cv2.drawKeypoints(smallsign,kp_r,None,color=(0,255,0), flags=0)
+plt.imshow(signKey),plt.show()
+
+#display large sign with keypoints
+signKey=cv2.drawKeypoints(largesign,kp_o,None,color=(0,255,0), flags=0)
+plt.imshow(signKey),plt.show()
+
+#match descriptors
+matches = bf.match(des_r,des_o)
+
+print(len(matches))
+
+#sort them in the order of their distance
+matches=sorted(matches,key=lambda x:x.distance)
+
+# Draw first 10 matches.
+matchImage = cv2.drawMatches(smallsign,kp_r,largesign,kp_o,matches[:10], None,flags=2)
+plt.imshow(matchImage),plt.show()
+
+#find homography
+src_pts = np.float32([ kp_r[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
+dst_pts = np.float32([ kp_o[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
+
+M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+matchesMask = mask.ravel().tolist()
+
+h,w = smallsign.shape
+pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+dst = cv2.perspectiveTransform(pts,M)
+largesignwBox = cv2.polylines(largesign,[np.int32(dst)],True,(0,255,0),3, cv2.LINE_AA)
+
+draw_params = dict(matchColor = (0,255,0), # draw matches in green color
+                   singlePointColor = None,
+                   matchesMask = matchesMask, # draw only inliers
+                   flags = 2)
+
+img3 = cv2.drawMatches(smallsign,kp_r,largesignwBox,kp_o,matches,None,**draw_params)
+
+plt.imshow(img3, 'gray'),plt.show()
+
+# show large sign
+cv2.imshow('large sign', largesign)
+cv2.waitKey(3000)
+cv2.destroyAllWindows()
+
+print(len(matches))
