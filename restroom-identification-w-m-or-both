@@ -1,0 +1,50 @@
+#sign detection/matching  - restroom signs - identification as man, woman or both
+
+#Take a single W+M sign, take crops of just the W and just the M; let the unknown be one of the three. 
+#Use number of keypoint matches with M and W to decide which of the three the unknown is
+
+#import, load images, display images
+import cv2, os
+import numpy as np
+from matplotlib import pyplot as plt
+os.chdir('C:/Users/Gretchen')
+woman=cv2.imread('restroomSign16.png',0)
+man=cv2.imread('restroomSign17.png',0)
+both=cv2.imread('restroomSign15.png',0)
+
+def getGender(unknownImage, womanRef, manRef):
+    threshold=1.25 #worked well in preliminary tests
+    gender='unknown'
+    matchW=testMatch(womanRef, unknownImage)
+    matchM=testMatch(manRef, unknownImage)
+    if matchW>threshold*matchM:
+        gender='W'
+    elif matchM>threshold*matchW:
+        gender='M'
+    else:
+        gender='W+M'
+    return gender
+
+def testMatch(imageA,imageB):
+    #find imageA in imageB
+    #ORB keypoints, descriptors and matching
+    #returns number of matches
+
+    # initialize ORB and BFMatcher
+    orb = cv2.ORB_create()
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING,crossCheck=True)
+    # find the keypoints and descriptors 
+    kpA,desA = orb.detectAndCompute(imageA,None)
+    kpB,desB = orb.detectAndCompute(imageB,None)
+    #match descriptors
+    matches = bf.match(desA,desB)
+
+    #sort them in the order of their distance
+    #***do we want to have some sort of cutoff on distance for a good match?
+    #matches=sorted(matches,key=lambda x:x.distance)
+    
+    return(len(matches))
+    
+#assign unknown to be one of our files, man, woman or both and then check which it is using getGender
+unknown=man
+print(getGender(unknown,woman,man))
